@@ -9,11 +9,12 @@ class Reinforce:
         self.environment = environment
         self.observation_shape = self.environment.get_observation_shape()
         self.num_actions = self.environment.get_num_actions()
-        self.step_size = 0.001
+        self.step_size = 0.1
         self.discount_factor = 1
         self.load_model_path = load_model_path
         self.save_model_path = save_model_path
         self.summary_writer = summary_writer
+        self.optimizer = tf.optimizers.SGD(learning_rate=self.step_size)
 
         self.policy = self.get_nn_policy()
 
@@ -23,15 +24,14 @@ class Reinforce:
 
         model = tf.keras.models.Sequential()
         model.add(tf.keras.layers.Dense(units=256, input_shape=self.observation_shape, activation='relu'))
-        model.add(tf.keras.layers.BatchNormalization())
         model.add(tf.keras.layers.Dense(units=256, activation='relu'))
-        model.add(tf.keras.layers.BatchNormalization())
         model.add(tf.keras.layers.Dense(units=self.num_actions, activation='softmax'))
 
         return model
 
     def get_saved_nn_policy(self):
         model = tf.keras.models.load_model(self.load_model_path)
+
         return model
 
     def get_gradients(self, state, action):
@@ -42,10 +42,15 @@ class Reinforce:
 
         return eligibility_vector
 
-    def update_gradients(self, gradients, episode_return, num_step):
-        for i in range(len(self.policy.trainable_variables)):
-            self.policy.trainable_variables[i].assign_add(
-                self.step_size * episode_return * (self.discount_factor ** num_step) * gradients[i])
+    def update_weights(self, gradients, episode_return, num_step):
+        processed_grads = self.process_gradients(gradients, episode_return, num_step)
+
+        self.optimizer.apply_gradients(zip(processed_grads, self.policy.trainable_variables))
+
+    def process_gradients(self, gradients, episode_return, num_step):
+        processed_grads = [self.step_size * episode_return * (self.discount_factor ** num_step) * grad for grad in
+                           gradients]
+        return processed_grads
 
     def get_action(self, observation):
         action_probs = self.policy(observation)[0]
@@ -95,7 +100,7 @@ class Reinforce:
             normalized_returns = self.normalize_returns(returns)
 
             for i in range(len(states)):
-                self.update_gradients(gradients_list[i], normalized_returns[i], i)
+                self.update_weights(gradients_list[i], normalized_returns[i], i)
 
             if (self.save_model_path is not None) and not ((epoch_num + 1) % 1000):
                 saved_filename = "_epoch_" + str(epoch_num + 1) + ".h5"
