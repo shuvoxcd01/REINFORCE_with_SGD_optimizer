@@ -2,6 +2,7 @@ import os
 import statistics
 
 import tensorflow as tf
+import numpy as np
 
 
 class Reinforce:
@@ -9,7 +10,7 @@ class Reinforce:
         self.environment = environment
         self.observation_shape = self.environment.get_observation_shape()
         self.num_actions = self.environment.get_num_actions()
-        self.step_size = 0.01
+        self.step_size = 0.001
         self.discount_factor = 1
         self.load_model_path = load_model_path
         self.save_model_path = save_model_path
@@ -48,13 +49,12 @@ class Reinforce:
         self.optimizer.apply_gradients(zip(processed_grads, self.policy.trainable_variables))
 
     def process_gradients(self, gradients, episode_return, num_step):
-        processed_grads = [(-1) * self.step_size * episode_return * (self.discount_factor ** num_step) * grad for grad
-                           in gradients]
+        processed_grads = [(-1) * episode_return * (self.discount_factor ** num_step) * grad for grad in gradients]
         return processed_grads
 
     def get_action(self, observation):
-        action_probs = self.policy(observation)[0]
-        action = tf.argmax(action_probs).numpy()
+        action_probs = self.policy(observation)[0].numpy()
+        action = np.random.choice(a=self.num_actions, p=action_probs)
 
         return action
 
