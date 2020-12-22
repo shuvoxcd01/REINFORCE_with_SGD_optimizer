@@ -1,6 +1,6 @@
 # REINFORCE
 
-Naive implementation of Monte-Carlo Policy-Gradient Control. CartPole-v0 has been used here as the environment.
+Naive implementation of Monte-Carlo Policy-Gradient Control with the help of SGD optimizer. CartPole-v0 has been used here as the environment.
 
 The algorithm is given below.
 
